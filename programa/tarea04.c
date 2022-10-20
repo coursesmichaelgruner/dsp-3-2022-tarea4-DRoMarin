@@ -43,17 +43,34 @@
  */
 
 #include <string.h>
+#include <stdlib.h>
 #include <stdio.h>
-
+#include <stdint.h>
+#define DELAY_MS 500.0
+#define ALPHA 0.2
 /**
  * You may need some global values 
  */
-
+float * feedback_buffer;
+float * out_buffer;
+uint32_t k;
+uint32_t l_f;
+uint32_t k_f;
 /**
  * This method is called before the real processing starts.
  * You may use it to initialize whatever you need to.
  */
 void init(const unsigned int Fs) {
+    
+  k = (uint32_t)((float)Fs * DELAY_MS/1000);
+  l_f = k/1024 + 1;
+  k_f = l_f * 1024;
+ 
+  feedback_buffer = malloc(sizeof(float)*k_f);
+  memset(feedback_buffer,0,sizeof(float)*k_f);
+
+  out_buffer = malloc(sizeof(float)*k_f);
+  memset(out_buffer,0,sizeof(float)*k_f);
 }
 
 /**
@@ -73,15 +90,25 @@ int process(const unsigned int Fs,
   /*
    * PUT YOUR CODE IN HERE
    */
+  static int nbatch = 0;
 
+  for(int i; i<nframes;i++){
+    out_buffer[i+nbatch*nframes] = (1-ALPHA)*in[i]+ALPHA*feedback_buffer[i+nbatch*nframes];  
+  }
+    
   /* This line just copies the data from input to output. REMOVE IT! */
-  memcpy(out, in, sizeof(float)*nframes);
-
+  memcpy(out, out_buffer+(nbatch*nframes)/*in*/, sizeof(float)*nframes);
   /* Debug stuff */
-  /*
-  printf("In: %.5f, Out: %.5f\n",*in,*out);
+  if (nbatch == l_f){
+    nbatch = 0;
+    memcpy(feedback_buffer, feedback_buffer+k,sizeof(float)*(k_f-k));
+    memcpy(feedback_buffer+(k_f-k), out_buffer,sizeof(float)*k);
+  }
+  
+  else nbatch ++;
+    
   fflush(stdout);
-  */
+  
   return 0; // everything is ok 
 }
 
